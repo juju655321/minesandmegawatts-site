@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Mines & Megawatts maps West Virginia's data centers (with estimated power and water use), coal, critical minerals, oil and gas wells, license-plate cameras and the power grid. Public beta.">
+<link rel="canonical" href="https://minesandmegawatts.com/">
+<meta property="og:site_name" content="Mines &amp; Megawatts">
+<meta property="og:url" content="https://minesandmegawatts.com/">
+<title>Mines &amp; Megawatts (Beta) · West Virginia</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M0 0h16L0 16z%22 fill=%22%23c9a227%22/%3E%3Cpath d=%22M16 0v16H0z%22 fill=%22%230079c1%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="app.css?v=6e604cec44">
+</head>
+<body>
+
+<header id="top">
+  <button id="btn-panel" class="iconbtn" aria-label="Show or hide layers panel" aria-expanded="true">
+    <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+  <span class="mark" aria-hidden="true"></span>
+  <h1>Mines &amp; Megawatts <span class="sub">West Virginia</span></h1>
+  <span class="badge beta" title="Public beta: data and estimates may change">Beta</span>
+  <span class="grow"></span>
+  <button id="btn-about" class="textbtn">Sources</button>
+</header>
+
+<div id="cards" aria-label="Key numbers"></div>
+<div id="scope"></div>
+
+<aside id="panel" aria-label="Layers and sections">
+  <div class="sheet-handle" id="panel-handle"><span></span></div>
+  <div class="tabs" role="tablist">
+    <button role="tab" class="tab on" data-tab="layers" aria-selected="true">Layers</button>
+    <button role="tab" class="tab" data-tab="charts" aria-selected="false">Charts</button>
+  </div>
+  <div id="sections" class="tabpane on" data-pane="layers"></div>
+  <div id="charts-m" class="tabpane" data-pane="charts"></div>
+</aside>
+
+<div id="map" aria-label="Map"></div>
+
+<div id="legend" class="box"><button id="legend-h" aria-expanded="true">Legend</button><div id="legend-b"></div></div>
+
+<section id="charts" class="box" aria-label="Charts"></section>
+
+<aside id="detail" class="box" aria-live="polite" hidden></aside>
+
+<div id="about" role="dialog" aria-modal="true" hidden></div>
+
+<div id="disc"><a href="about.html">About, credits &amp; privacy</a> · For information only. <b>Not for engineering, legal, or investment decisions.</b> Estimates are labeled. ⚠ = unverified.</div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="app.js?v=6e604cec44"></script>
+</body>
+</html>
