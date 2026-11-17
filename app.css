@@ -2,7 +2,7 @@
 @font-face{font-family:Plex;src:url(fonts/ibm-plex-sans-latin-500-normal.woff2) format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:Plex;src:url(fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2');font-weight:600;font-display:swap}
 @font-face{font-family:Plex;src:url(fonts/ibm-plex-sans-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
-:root{--bg:#151515;--bg2:#1f1f1f;--bg3:#2b2b2b;--line:#3a3a3a;--tx:#e8e8e8;--tx2:#a9a9a9;--acc:#0079c1;--acc2:#3fa9f5;--warn:#f2b134;--hdr:48px;--panel:320px;
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--hdr0:48px;--hdr:calc(var(--hdr0) + var(--sat));--bg:#151515;--bg2:#1f1f1f;--bg3:#2b2b2b;--line:#3a3a3a;--tx:#e8e8e8;--tx2:#a9a9a9;--acc:#0079c1;--acc2:#3fa9f5;--warn:#f2b134;--panel:320px;
  --dc:#ff6b5a;--coal:#c9a227;--min:#2fc4b2;--well:#b07cff;--alpr:#ff4fa3;--grid:#5ab0ff;--terrain:#a8a8a8}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.4 Plex,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
@@ -15,12 +15,12 @@ a{color:var(--acc2)} button{font:inherit;color:inherit}
 #gate button{width:100%;padding:10px;background:var(--acc);border:0;color:#fff;font-weight:600;cursor:pointer}
 #gate .err{color:#ff8a80;min-height:1em;margin:6px 0 0}.fine{color:var(--tx2);font-size:12px}
 body.locked #top,body.locked #cards,body.locked #panel,body.locked #legend,body.locked #charts,body.locked #disc{visibility:hidden}
-#top{position:fixed;top:0;left:0;right:0;height:var(--hdr);z-index:20;background:#1b1b1b;border-bottom:1px solid #000;display:flex;align-items:center;gap:10px;padding:0 10px}
+#top{position:fixed;top:0;left:0;right:0;height:var(--hdr);padding-top:var(--sat)!important;z-index:20;background:#1b1b1b;border-bottom:1px solid #000;display:flex;align-items:center;gap:10px;padding:0 10px}
 #top h1{font-size:16px;font-weight:500;margin:0;white-space:nowrap}#top .sub{color:var(--tx2);font-weight:400;margin-left:4px}
 .badge{font-size:11px;text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--acc);color:var(--acc2);padding:1px 6px}
 .grow{flex:1}.iconbtn{background:none;border:0;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .iconbtn svg{width:20px;height:20px;stroke:#ddd;stroke-width:2;fill:none}.iconbtn:hover{background:var(--bg3)}
-.textbtn{background:var(--acc);border:0;color:#fff;padding:0 14px;height:var(--hdr);margin-right:-10px;cursor:pointer;font-weight:500}
+.textbtn{background:var(--acc);border:0;color:#fff;padding:0 14px;height:var(--hdr0);margin-right:-10px;cursor:pointer;font-weight:500}
 #map{position:fixed;top:var(--hdr);left:0;right:0;bottom:0}
 /* panel */
 #panel{position:fixed;top:var(--hdr);left:0;bottom:0;width:var(--panel);z-index:15;background:var(--bg2);border-right:1px solid #000;display:flex;flex-direction:column;transition:transform .2s}
@@ -93,24 +93,24 @@ body.nopanel #disc{left:10px}
 .maplibregl-popup-content{background:#222;color:var(--tx);padding:6px 10px;border-radius:0}.maplibregl-popup-tip{border-top-color:#222!important}
 /* phone: panels become bottom sheets */
 @media (max-width:760px){
- :root{--hdr:46px}
+ :root{--hdr0:46px}
  #top h1 .sub{display:none}#btn-panel{display:none}
  #cards{left:0!important;right:0;top:calc(var(--hdr) + 6px);padding:0 8px}
  .card{min-width:128px;flex:0 0 auto;padding:6px 8px}.card .v{font-size:20px}
  #scope{left:8px!important;top:calc(var(--hdr) + 88px)}
- #legend{right:50px;top:auto;bottom:calc(var(--sheet,160px) + 44px);width:150px}
+ #legend{right:50px;top:auto;bottom:calc(var(--sheet,160px) + var(--sab) + 44px);width:150px}
  #charts-m{padding:10px 12px}
  .card{flex:0 0 auto;min-width:140px;max-width:200px}
  #legend:not(.open) #legend-b{display:none}
  #charts{display:none}
- #panel{top:auto;width:auto;right:0;height:var(--sheet,160px);border-right:0;border-top:1px solid #000;border-radius:12px 12px 0 0;transform:none!important;transition:height .2s;box-shadow:0 -4px 16px rgba(0,0,0,.5)}
- #panel.full{--sheet:68vh;height:68vh}
+ #panel{top:auto;width:auto;right:0;height:calc(var(--sheet,160px) + var(--sab));padding-bottom:var(--sab);border-right:0;border-top:1px solid #000;border-radius:12px 12px 0 0;transform:none!important;transition:height .2s;box-shadow:0 -4px 16px rgba(0,0,0,.5)}
+ #panel.full{--sheet:68vh;height:calc(68vh + var(--sab))}
  .sheet-handle{display:flex;justify-content:center;padding:6px 0 2px;cursor:pointer}.sheet-handle span{width:40px;height:4px;border-radius:2px;background:#666}
  .tabs{display:flex;border-bottom:1px solid var(--line)}.tab{flex:1;background:none;border:0;padding:8px;cursor:pointer;color:var(--tx2)}.tab.on{color:#fff;box-shadow:inset 0 -2px 0 var(--acc)}
- #detail{left:0;right:0;top:auto;bottom:0;width:auto;max-height:72vh;border-radius:12px 12px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.6)}
- #disc{left:0!important;max-width:none;right:0;bottom:var(--sheet,160px);font-size:10.5px;border-width:1px 0 0}
+ #detail{left:0;right:0;top:auto;bottom:0;width:auto;max-height:72vh;padding-bottom:calc(12px + var(--sab));border-radius:12px 12px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.6)}
+ #disc{left:0!important;max-width:none;right:0;bottom:calc(var(--sheet,160px) + var(--sab));font-size:10.5px;border-width:1px 0 0}
  .maplibregl-ctrl-bottom-right{margin-bottom:22px}
- .maplibregl-ctrl-bottom-right{bottom:calc(var(--sheet,160px) + 4px)}
+ .maplibregl-ctrl-bottom-right{bottom:calc(var(--sheet,160px) + var(--sab) + 4px)}
  .maplibregl-ctrl-top-right{top:84px}
 }
 /* lidar opacity slider */
@@ -179,3 +179,4 @@ body:not(.view-us) #us-sections{display:none!important}
  #offline{top:calc(var(--hdr) + 92px)}
 }
 @media (max-width:360px){#top h1{font-size:13px}.mark{display:none}}
+html.native-app{--sat:var(--safe-area-inset-top,env(safe-area-inset-top,0px));--sab:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))}
