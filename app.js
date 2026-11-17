@@ -45,7 +45,7 @@ async function start(){
   map.on('moveend',loadWells);
   addEventListener('resize',()=>{renderCharts()});
 }
-class HomeCtl{onAdd(m){const d=document.createElement('div');d.className='maplibregl-ctrl maplibregl-ctrl-group home-btn';d.innerHTML='<button type="button" title="Zoom out to the whole view" aria-label="Zoom out to the whole state or country"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z"/></svg></button>';d.onclick=()=>{if(view==='us'){usSelect(null);return} setCounty(null);m.fitBounds([[-82.65,37.2],[-77.72,40.64]],{padding:pad()})};return d}onRemove(){}}
+class HomeCtl{onAdd(m){const d=document.createElement('div');d.className='maplibregl-ctrl maplibregl-ctrl-group home-btn';d.innerHTML='<button type="button" title="Zoom out to the whole view" aria-label="Zoom out to the whole state or country"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z"/></svg></button>';d.onclick=()=>{if(view==='us'){usSelect(null);return} setCounty(null);m.setPadding({top:0,bottom:0,left:0,right:0});m.fitBounds([[-82.65,37.2],[-77.72,40.64]],{padding:pad()})};return d}onRemove(){}}
 function pad(){return isPhone()?{top:110,bottom:180,left:20,right:20}:{top:110,bottom:40,left:($('body').classList.contains('nopanel')?20:330),right:220}}
 
 /* ---------- layers ---------- */
@@ -254,7 +254,7 @@ function onClick(e){
   let n=null; for(const [name,ci] of Object.entries(cinfo)){const b=ci.bbox,{lng,lat}=e.lngLat; if(lng>=b[0]&&lng<=b[2]&&lat>=b[1]&&lat<=b[3]){const save=county;county=name;const hit=pointInCounty(lng,lat);county=save;if(hit){n=name;break}}}
   setCounty(n===county?null:n);
 }
-function setCounty(n,fit){county=n; if(n&&fit){const b=cinfo[n].bbox;map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:pad(),maxZoom:10})} if(map.getLayer('cty-sel')) map.setFilter('cty-sel',['==',['get','fips'],n?cinfo[n].fips:'']); renderCards(); renderCharts();
+function setCounty(n,fit){county=n; if(n&&fit){const b=cinfo[n].bbox;map.setPadding({top:0,bottom:0,left:0,right:0});map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:pad(),maxZoom:10})} if(map.getLayer('cty-sel')) map.setFilter('cty-sel',['==',['get','fips'],n?cinfo[n].fips:'']); renderCards(); renderCharts();
   if(n&&isPhone()){ $$('.tab').find(t=>t.dataset.tab==='charts').click() } }
 function showDetail(kind,p,ll){
   const d=$('#detail'); let h='';
@@ -348,13 +348,13 @@ function addUS(){
 }
 function usPaint(){if(!map.getSource('us-states'))return; const m=usStateMw(); Object.entries(m).forEach(([a,v])=>map.setFeatureState({source:'us-states',id:a},{mw:v.mw,n:v.n,sel:a===usSel?1:0}))}
 function usRefresh(){usPaint(); const s=map.getSource('us-dc'); if(s) s.setData(usDcData()); renderCards(); renderCharts(); renderLegend()}
-function usFit(abbr){const p=isPhone()?{top:120,left:14,right:14,bottom:200}:{top:120,left:($('body').classList.contains('nopanel')?20:330),right:390,bottom:40};
+function usFit(abbr){map.setPadding({top:0,bottom:0,left:0,right:0}); const p=isPhone()?{top:120,left:14,right:14,bottom:200}:{top:120,left:($('body').classList.contains('nopanel')?20:330),right:390,bottom:40};
   if(!abbr){map.fitBounds(CONUS,{padding:p,duration:700});return} const b=US.stats.states[abbr]&&US.stats.states[abbr].bbox; if(b) map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:p,duration:800,maxZoom:abbr==='AK'?4.2:7.5})}
 function usSelect(abbr,noFit){usSel=abbr||null; $('#detail').hidden=true; if(usPopup){usPopup.remove();usPopup=null} usRefresh(); if(!noFit) usFit(usSel)}
 async function setView(v,o={}){
   if(v===view&&!o.force) return; 
   if(v==='us'){ try{await loadUS()}catch(e){toast('Could not load the US data. Check your connection and try again.');return} if(!window.__ready) await new Promise(r=>{const t=setInterval(()=>{if(window.__ready){clearInterval(t);r()}},100)}); addUS(); }
-  view=v; document.body.classList.toggle('view-us',v==='us'); map.setMinZoom(v==='us'?2.5:5);
+  view=v; document.body.classList.toggle('view-us',v==='us'); map.setMinZoom(v==='us'?1.8:5);
   $$('#viewsw button').forEach(b=>{b.classList.toggle('on',b.dataset.view===v);b.setAttribute('aria-pressed',b.dataset.view===v)});
   $('#top .sub').textContent=v==='us'?'United States':'West Virginia';
   const tl={layers:v==='us'?'Filters':'Layers',charts:v==='us'?'Top 5':'Charts'}; $$('.tab').forEach(t=>t.textContent=tl[t.dataset.tab]);
@@ -363,7 +363,7 @@ async function setView(v,o={}){
   US_IDS.forEach(i=>{if(map.getLayer(i)) map.setLayoutProperty(i,'visibility',v==='us'?'visible':'none')});
   applyVis();
   if(v==='us'){renderUSPanel(); usPaint(); const s=map.getSource('us-dc'); if(s) s.setData(usDcData()); if(!o.noFit) usFit(usSel)}
-  else if(!o.noFit){ if(county){const b=cinfo[county].bbox;map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:pad(),maxZoom:10})} else map.fitBounds([[-82.65,37.2],[-77.72,40.64]],{padding:pad()}) }
+  else if(!o.noFit){ map.setPadding({top:0,bottom:0,left:0,right:0}); if(county){const b=cinfo[county].bbox;map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:pad(),maxZoom:10})} else map.fitBounds([[-82.65,37.2],[-77.72,40.64]],{padding:pad()}) }
   renderCards(); renderCharts(); renderLegend();
   try{history.replaceState(null,'',v==='us'?'#us':location.pathname+location.search)}catch(e){}
 }

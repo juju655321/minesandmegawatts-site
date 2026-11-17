@@ -178,5 +178,5 @@ body:not(.view-us) #us-sections{display:none!important}
  #sx-r{max-height:calc(100vh - var(--hdr) - 110px)}
  #offline{top:calc(var(--hdr) + 92px)}
 }
-@media (max-width:360px){#top h1{font-size:13px}.mark{display:none}}
+@media (max-width:345px){#top h1{font-size:13px}.mark{display:none}}
 html.native-app{--sat:var(--safe-area-inset-top,env(safe-area-inset-top,0px));--sab:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))}
