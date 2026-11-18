@@ -10,7 +10,7 @@ const isPhone=()=>matchMedia('(max-width:760px)').matches;
 const WVGES_MINED='https://atlas.wvgs.wvnet.edu/arcgis/rest/services/Coal_Web_Mercator/All_Mining_WM/MapServer';
 const USGS_RELIEF='https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer';
 const WVGES_WELLS='https://atlas2.wvgs.wvnet.edu/server/rest/services/OilGas_WVOG/WVOG_Layer/MapServer/4';
-const S={dc:null,coal:null,min:null,pp:null,tx:null,alpr:null,cty:null,st:null};
+const S={dc:null,coal:null,min:null,pp:null,tx:null,alpr:null,ev:null,cty:null,st:null};
 let map, county=null, coalYear=null, mineFilter={active:true,idle:true,abandoned:false}, minGroups={copper:true,battery:true,ree:true,other:false};
 const wellsLoaded={}, wellRows=[]; let cinfo={};
 
@@ -34,22 +34,42 @@ async function start(){
   map.addControl(new HomeCtl(),'top-right');
   map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}),'top-right');
   map.addControl(new maplibregl.ScaleControl({unit:'imperial'}),'bottom-right');
-  const [dc,cty,st]=await Promise.all([getJSON('data/datacenters_odbl.geojson'),getJSON('data/counties.geojson'),getJSON('data/stats.json')]);
-  S.dc=dc;S.cty=cty;S.st=st;
+  const [dc,cty,st,ev]=await Promise.all([getJSON('data/datacenters_odbl.geojson'),getJSON('data/counties.geojson'),getJSON('data/stats.json'),getJSON('data/ev_stations.geojson')]);
+  S.dc=dc;S.cty=cty;S.st=st;S.ev=ev;
   cty.features.forEach(f=>{const cs=(f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates).flat(2);
     let a=[180,90,-180,-90];cs.forEach(([x,y])=>{a=[Math.min(a[0],x),Math.min(a[1],y),Math.max(a[2],x),Math.max(a[3],y)]});cinfo[f.properties.name]={bbox:a,fips:f.properties.fips}});
   buildPanel(); renderCards(); renderCharts(); renderLegend();
-  map.on('load',()=>{const at=document.querySelector('.maplibregl-ctrl-attrib');if(at&&isPhone())at.classList.remove('maplibregl-compact-show');addBase();addDC();ensure('coal');ensure('alpr');applyVis();window.__ready=true;const o=$('#offline');if(o&&navigator.onLine!==false)o.hidden=true;if(/^#us\b/.test(location.hash))setView('us')});
+  map.on('load',()=>{const at=document.querySelector('.maplibregl-ctrl-attrib');if(at&&isPhone())at.classList.remove('maplibregl-compact-show');addEvIcons();addBase();addDC();ensure('coal');ensure('alpr');ensure('ev');applyVis();window.__ready=true;const o=$('#offline');if(o&&navigator.onLine!==false)o.hidden=true;if(/^#us\b/.test(location.hash))setView('us')});
   map.on('error',e=>{const m=String(e&&e.error&&e.error.message||''); if(!window.__ready&&/Failed to fetch|NetworkError|load failed/i.test(m)){const o=$('#offline');if(o)o.hidden=false} if(e&&e.error&&!/tile|Failed to fetch|AbortError|NetworkError/i.test(m)) console.warn('map',m)});
   map.on('click',onClick);
-  map.on('moveend',loadWells);
+  map.on('moveend',()=>{loadWells(); if(view==='wv') renderCards()});
   addEventListener('resize',()=>{renderCharts()});
 }
 class HomeCtl{onAdd(m){const d=document.createElement('div');d.className='maplibregl-ctrl maplibregl-ctrl-group home-btn';d.innerHTML='<button type="button" title="Zoom out to the whole view" aria-label="Zoom out to the whole state or country"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z"/></svg></button>';d.onclick=()=>{if(view==='us'){usSelect(null);return} setCounty(null);m.setPadding({top:0,bottom:0,left:0,right:0});m.fitBounds([[-82.65,37.2],[-77.72,40.64]],{padding:pad()})};return d}onRemove(){}}
 function pad(){return isPhone()?{top:110,bottom:180,left:20,right:20}:{top:110,bottom:40,left:($('body').classList.contains('nopanel')?20:330),right:220}}
 
 /* ---------- layers ---------- */
-const LAY={dc:true,coal:true,lidar:false,mined:false,min:false,wells:false,alpr:false,pp:false,tx:false};
+const LAY={dc:true,coal:true,lidar:false,mined:false,min:false,wells:false,alpr:false,pp:false,tx:false,ev:false};
+function addEvIcons(){
+  if(!map||map.hasImage('ev-bolt')) return;
+  const mk=(name,bg,draw)=>{
+    const c=document.createElement('canvas'); c.width=64; c.height=64; const g=c.getContext('2d');
+    g.clearRect(0,0,64,64); draw(g,bg); map.addImage(name,g.getImageData(0,0,64,64),{pixelRatio:2});
+  };
+  mk('ev-bolt','#123', (g)=>{
+    g.fillStyle='#0b1a18'; g.beginPath(); g.moveTo(30,10); g.lineTo(18,36); g.lineTo(29,36); g.lineTo(24,54); g.lineTo(46,28); g.lineTo(34,28); g.lineTo(40,10); g.closePath(); g.fill();
+    g.fillStyle='#fff'; g.beginPath(); g.moveTo(31,13); g.lineTo(21,35); g.lineTo(31,35); g.lineTo(27,50); g.lineTo(43,30); g.lineTo(33,30); g.lineTo(38,13); g.closePath(); g.fill();
+  });
+  mk('ev-plug','#123', (g)=>{
+    g.strokeStyle='#0b1a18'; g.fillStyle='#0b1a18'; g.lineWidth=5; g.lineCap='round';
+    g.beginPath(); g.moveTo(24,16); g.lineTo(24,28); g.moveTo(40,16); g.lineTo(40,28); g.stroke();
+    g.beginPath(); g.roundRect?g.roundRect(16,26,32,22,5):(g.rect(16,26,32,22)); g.fill();
+    g.beginPath(); g.moveTo(32,48); g.lineTo(32,56); g.stroke();
+    g.strokeStyle='#fff'; g.fillStyle='#fff'; g.lineWidth=3;
+    g.beginPath(); g.moveTo(24,17); g.lineTo(24,27); g.moveTo(40,17); g.lineTo(40,27); g.stroke();
+    g.fillRect(19,28,26,18);
+  });
+}
 function addBase(){
   map.addSource('cty',{type:'geojson',data:S.cty,promoteId:'fips'});
   const wc=['match',['get','fips']]; S.cty.features.forEach(f=>{wc.push(f.properties.fips,(S.st.county[f.properties.name]||{}).wells||0)}); wc.push(0);
@@ -92,6 +112,21 @@ async function ensure(k){
   if(k==='tx'&&!S.tx){S.tx=await getJSON('data/transmission_odbl.geojson');
     map.addSource('tx',{type:'geojson',data:S.tx});
     map.addLayer({id:'tx',type:'line',source:'tx',paint:{'line-color':['interpolate',['linear'],['get','kv'],69,'#2f5f8a',138,'#3f8fd0',345,'#7cc4ff',765,'#e0f2ff'],'line-width':['interpolate',['linear'],['get','kv'],69,0.6,500,1.8,765,2.6],'line-opacity':0.8}},'cty-sel'); applyVis();}
+  if(k==='ev'&&S.ev&&!map.getSource('ev')){
+    map.addSource('ev',{type:'geojson',data:S.ev,cluster:true,clusterRadius:44,clusterMaxZoom:12,
+      clusterProperties:{dcn:['+',['case',['>',['coalesce',['get','dc'],0],0],1,0]]}});
+    map.addLayer({id:'ev-cl',type:'circle',source:'ev',filter:['has','point_count'],paint:{
+      'circle-radius':['interpolate',['linear'],['get','point_count'],2,14,20,22,80,30],
+      'circle-color':['case',['>',['get','dcn'],0],'#128f78','#2a5ea8'],'circle-opacity':0.88,
+      'circle-stroke-color':['case',['>',['get','dcn'],0],'#9ff5e4','#9ec5ff'],'circle-stroke-width':1.4}},'dc-halo');
+    map.addLayer({id:'ev-cn',type:'symbol',source:'ev',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Noto Sans Regular'],'text-size':11},paint:{'text-color':'#fff'}});
+    map.addLayer({id:'ev-pt',type:'circle',source:'ev',filter:['!',['has','point_count']],paint:{
+      'circle-radius':['interpolate',['linear'],['zoom'],6,['case',['==',['get','kind'],'dc'],5.5,4],13,['case',['==',['get','kind'],'dc'],9,7]],
+      'circle-color':['match',['get','kind'],'dc','#2ee6c7','l1','#8fb8ff','#4d9fff'],
+      'circle-stroke-color':'#0b1a18','circle-stroke-width':1.15}},'dc-halo');
+    map.addLayer({id:'ev-ic',type:'symbol',source:'ev',filter:['!',['has','point_count']],minzoom:7.5,
+      layout:{'icon-image':['match',['get','kind'],'dc','ev-bolt','ev-plug'],'icon-size':0.42,'icon-allow-overlap':true,'icon-ignore-placement':true}});
+    applyVis(); renderCards();}
   if(k==='wells'){if(!map.getSource('wells')){map.addSource('wells',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterRadius:40,clusterMaxZoom:11});
     map.addLayer({id:'wells-cl',type:'circle',source:'wells',filter:['has','point_count'],minzoom:9.5,paint:{'circle-radius':['interpolate',['linear'],['get','point_count'],10,10,500,20,3000,28],'circle-color':'#7a52c7','circle-opacity':0.8,'circle-stroke-color':'#d4b8ff','circle-stroke-width':1}},'dc-halo');
     map.addLayer({id:'wells-cn',type:'symbol',source:'wells',filter:['has','point_count'],minzoom:9.5,layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Noto Sans Regular'],'text-size':11},paint:{'text-color':'#fff'}});
@@ -101,6 +136,7 @@ async function ensure(k){
 function applyVis(){
   const v=(id,on)=>{if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',(on&&view==='wv')?'visible':'none')}; v('cty-line',true); v('cty-sel',true);
   ['dc','dc-halo','dc-lbl'].forEach(i=>v(i,LAY.dc)); v('coal',LAY.coal); v('mined',LAY.mined); v('lidar',LAY.lidar); v('min',LAY.min); v('alpr',LAY.alpr); v('pp',LAY.pp); v('tx',LAY.tx);
+  ['ev-cl','ev-cn','ev-pt','ev-ic'].forEach(i=>v(i,LAY.ev));
   ['cty-wells','wells-cl','wells-cn','wells-pt'].forEach(i=>v(i,LAY.wells));
   renderLegend();
 }
@@ -142,6 +178,11 @@ const SECS=[
  {k:'Context',t:'Power grid',c:'var(--grid)',lay:'pp',body:()=>sw('pp','Power plants (EIA-860M, Sep 2026)')+sw('tx','Transmission lines 69 kV+ (OSM)')+
    `<p class="note">Plants: ${A('https://www.eia.gov/electricity/data/eia860m/','EIA-860M')} (public domain). Lines: © OpenStreetMap contributors (ODbL), as on ${A('https://openinframap.org/copyright','Open Infrastructure Map')}.</p>`},
 ];
+SECS.push({k:'Context',t:'EV charging',c:'var(--ev)',lay:'ev',body:()=>{
+  const sm=S.ev&&S.ev.summary;
+  return sw('ev','Public EV charging stations'+(sm?' ('+fmt(sm.n)+')':''))+
+  `<p class="note">Public, currently available West Virginia stations from the ${A('https://afdc.energy.gov/stations/','U.S. DOE Alternative Fuels Data Center')}. Teal pins with a lightning bolt are <b>DC fast</b>; blue pins with a plug are <b>Level 2</b>. Dense areas cluster until you zoom in.${sm?` ${fmt(sm.n)} stations, ${fmt(sm.ports)} ports (${fmt(sm.dc)} DC fast, ${fmt(sm.l2)} Level 2). Pulled ${esc(sm.pulled)}.`:''}</p>
+   <p class="note">Source: ${A('https://afdc.energy.gov/stations/','U.S. DOE Alternative Fuels Data Center')} (US public domain), via the NREL Alternative Fuel Stations API.</p>`}});
 SECS.push({k:'Context',t:'Terrain',c:'var(--terrain)',lay:'lidar',body:()=>sw('lidar','Lidar terrain (USGS 3DEP)')+
    `<label class="rng">Opacity <input type="range" id="lidar-op" min="0.1" max="1" step="0.05" value="${lidarOp}" aria-label="Lidar terrain opacity"> <output id="lidar-op-v">${Math.round(lidarOp*100)}%</output></label>
    <p class="note">Shaded relief from bare-earth elevation, blended softly under the map so ridges, hollows and strip-mine benches show. Zoom in near Logan or Boone County with Coal on. Elevation: ${A('https://www.usgs.gov/3d-elevation-program','USGS 3D Elevation Program (3DEP)')}, public domain; tiles from ${A('https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer','The National Map shaded relief service')}. <span class="warn">⚠ Cached tiles stop at zoom 16 and are drawn from the 3DEP seamless elevation, so they are smoother than raw 1 m lidar.</span></p>`});
@@ -179,6 +220,17 @@ function inCounty(f){if(!county)return true; return f.properties.county===county
 function ptIn(c,f){if(!county)return true; const b=cinfo[county].bbox,[x,y]=f.geometry.coordinates; if(x<b[0]||x>b[2]||y<b[1]||y>b[3])return false; return pointInCounty(x,y)}
 function pointInCounty(x,y){const g=S.cty.features.find(f=>f.properties.name===county).geometry; const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;
   return polys.some(p=>{const r=p[0];let ins=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const[xi,yi]=r[i],[xj,yj]=r[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins}return ins})}
+function evScope(){
+  if(!S.ev) return null;
+  const all=S.ev.features; let list, scope;
+  if(county){ list=all.filter(f=>f.properties.county===county); scope=county+' County'; }
+  else if(map){
+    const b=map.getBounds();
+    list=all.filter(f=>{const[x,y]=f.geometry.coordinates; return x>=b.getWest()&&x<=b.getEast()&&y>=b.getSouth()&&y<=b.getNorth()});
+    const sm=S.ev.summary||{}; scope=(list.length===all.length||list.length===(sm.n||all.length))?'West Virginia':'in view';
+  } else { list=all; scope='West Virginia'; }
+  return {n:list.length, ports:list.reduce((a,f)=>a+(f.properties.ports||0),0), dcn:list.filter(f=>f.properties.kind==='dc').length, scope};
+}
 function renderCards(){
   if(view==='us') return renderUSCards();
   if(!S.dc) return; const sm=S.dc.summary, cs=county?S.st.county[county]:null;
@@ -189,6 +241,7 @@ function renderCards(){
   const wells=county?(cs.wells||0):S.st.wells_total;
   const alpr=S.alpr?S.alpr.features.filter(f=>ptIn(county,f)):null;
   const mins=county?cs.min:Object.values(S.st.county).reduce((a,c)=>a+(c.min||0),0);
+  const ev=evScope();
   const C=(c,l,v,s)=>`<div class="card" style="--c:${c}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
   $('#cards').innerHTML=
    C('var(--dc)','Data center MW (stated)',fmt(mw)+' <small>MW</small>',county?`${dcs.length} site${dcs.length===1?'':'s'} · ${A('https://datacenterdata.com/data/','src')}`:`${fmt(mw/sm.wv_capacity_mw*100)}% of WV capacity ⚠ · ${A(sm.wv_cap_url,'EIA')}`)+
@@ -196,7 +249,8 @@ function renderCards(){
    C('var(--coal)','Coal mines (MSHA)',act==null?'…':fmt(act)+' <small>active</small>',mines?`${fmt(mines.length)} on record · ${A('https://arlweb.msha.gov/OpenGovernmentData/OGIMSHA.asp','MSHA')}`:'loading')+
    C('var(--well)','Oil & gas wells',fmt(wells),`WVGES well layer ⚠ terms pending · ${A(WVGES_WELLS,'src')}`)+
    C('var(--alpr)','Flock cameras',alpr?fmt(alpr.filter(f=>f.properties.flock).length):'…',alpr?`${fmt(alpr.length)} ALPR total · ${A('https://www.openstreetmap.org/copyright','OSM')} ODbL`:'loading')+
-   C('var(--min)','Critical-mineral sites (WV)',mins==null?'…':fmt(mins),`USGS MRDS · ${A('https://mrdata.usgs.gov/mrds/','src')}`);
+   C('var(--min)','Critical-mineral sites (WV)',mins==null?'…':fmt(mins),`USGS MRDS · ${A('https://mrdata.usgs.gov/mrds/','src')}`)+
+   C('var(--ev)','EV charging',ev?fmt(ev.ports)+' <small>ports</small>':'…',ev?`${fmt(ev.n)} station${ev.n===1?'':'s'} · ${fmt(ev.dcn)} DC fast · ${esc(ev.scope)} · ${A('https://afdc.energy.gov/stations/','DOE AFDC')}`:'loading');
   $$('#cards a[href="#method"]').forEach(a=>a.onclick=e=>{e.preventDefault();about()});
   $('#scope').classList.toggle('on',!!county); $('#scope').innerHTML=county?`<button aria-label="Clear county">${esc(county)} County ✕</button>`:'';
   if(county) $('#scope button').onclick=()=>setCounty(null);
@@ -236,6 +290,7 @@ function renderLegend(){
   if(LAY.wells) L.push('<div class="lgt">Wells</div><div class="lg"><i class="sq" style="background:linear-gradient(90deg,#1d1730,#d4b8ff)"></i>Wells per county</div>'+[['#b07cff','Gas'],['#3dd68c','Oil'],['#4fc3f7','Oil & gas'],['#777','Dry']].map(([c,t])=>`<div class="lg"><i style="background:${c}"></i>${t}</div>`).join(''));
   if(LAY.alpr) L.push('<div class="lgt">ALPR cameras</div><div class="lg"><i style="background:#ff4fa3"></i>Flock Safety</div><div class="lg"><i style="background:#ff9ccd"></i>Other / unknown</div>');
   if(LAY.pp) L.push('<div class="lgt">Power plants</div>'+[['#8c6d3f','Coal'],['#5ab0ff','Gas'],['#3cd0e0','Hydro'],['#a0e070','Wind'],['#ffe066','Solar']].map(([c,t])=>`<div class="lg"><i style="background:${c}"></i>${t}</div>`).join(''));
+  if(LAY.ev) L.push('<div class="lgt">EV charging</div><div class="lg"><i class="ev-dc"></i>DC fast</div><div class="lg"><i class="ev-l2"></i>Level 2</div><div class="note">Clusters expand on zoom or tap</div>');
   if(LAY.tx) L.push('<div class="lg"><i class="ln" style="background:#7cc4ff"></i>Transmission (kV)</div>');
   $('#legend-b').innerHTML=L.join('')||'<div class="note">No layers on</div>';
 }
@@ -243,10 +298,11 @@ function renderLegend(){
 /* ---------- click: feature card, else county ---------- */
 function onClick(e){
   if(view==='us') return onClickUS(e);
-  const ids=['dc','min','alpr','pp','coal','wells-pt','wells-cl','tx'].filter(i=>map.getLayer(i)&&map.getLayoutProperty(i,'visibility')!=='none');
+  const ids=['dc','ev-pt','ev-cl','min','alpr','pp','coal','wells-pt','wells-cl','tx'].filter(i=>map.getLayer(i)&&map.getLayoutProperty(i,'visibility')!=='none');
   const fs=map.queryRenderedFeatures([[e.point.x-6,e.point.y-6],[e.point.x+6,e.point.y+6]],{layers:ids});
   if(fs.length){const f=fs[0],id=f.layer.id;
     if(id==='wells-cl'){map.getSource('wells').getClusterExpansionZoom(f.properties.cluster_id).then(z=>map.easeTo({center:f.geometry.coordinates,zoom:z}));return}
+    if(id==='ev-cl'){map.getSource('ev').getClusterExpansionZoom(f.properties.cluster_id).then(z=>map.easeTo({center:f.geometry.coordinates,zoom:Math.min(z+0.2,14)}));return}
     let p=f.properties; if(id==='dc') p=S.dc.features.find(x=>x.properties.id===p.id).properties;
     if(id==='min'&&p.g==='ree_site') p=S.min.features.find(x=>x.properties.name===p.name).properties;
     showDetail(id,p,f.geometry.type==='Point'?f.geometry.coordinates:[e.lngLat.lng,e.lngLat.lat]); return}
@@ -282,6 +338,11 @@ function showDetail(kind,p,ll){
     <h3>Sources</h3><ul class="srcs"><li>${A(WVGES_WELLS+'/query?where=api%3D'+encodeURIComponent(p.api)+'&outFields=*&f=html','WVGES well record (API '+p.api+')')}</li><li>Permits: ${A('https://dep.wv.gov/oil-and-gas/databaseinfo/Pages/default.aspx','WVDEP Office of Oil and Gas')}</li></ul><p class="note warn">⚠ No license posted by WVDEP/WVGES; written reuse terms pending.</p>`}
   else if(kind==='alpr') h=`<div class="kicker">License-plate camera (ALPR)</div><h2>${esc(p.mf||'Unknown maker')}</h2>${kv([['Operator',esc(p.op||'Not tagged')]])}<h3>Source</h3><ul class="srcs"><li>${A('https://www.openstreetmap.org/'+p.osm,'OpenStreetMap '+p.osm)} · © OpenStreetMap contributors, ODbL</li><li>Also on ${A('https://deflock.org','DeFlock')}</li></ul><p class="note">Location only. No plate data.</p>`;
   else if(kind==='pp') h=`<div class="kicker">Power plant · EIA ${esc(p.id)}</div><h2>${esc(p.name)}</h2>${kv([['Status',esc(p.stat)],['Nameplate',`<b>${fmt(p.mw,p.mw%1?1:0)} MW</b>`],['Main fuel',esc(p.fuel)+' ('+esc(p.code)+')'],['Owner',esc(p.owner)],['County',esc(p.county)]])}<h3>Source</h3><ul class="srcs"><li>${A('https://www.eia.gov/electricity/data/browser/#/plant/'+p.id,'EIA plant '+p.id)} · ${A('https://www.eia.gov/electricity/data/eia860m/','EIA-860M Sep 2026')} (public domain)</li></ul>`;
+  else if(kind==='ev-pt'||kind==='ev'){const kindL=p.kind==='dc'?'DC fast':(p.kind==='l1'?'Level 1':'Level 2');
+    const ports=[[ 'Level 2 ports', p.l2?fmt(p.l2):null],['DC fast ports', p.dc?fmt(p.dc):null],['Level 1 ports', p.l1?fmt(p.l1):null]].filter(r=>r[1]);
+    h=`<div class="kicker">EV charging · ${esc(kindL)}</div><h2>${esc(p.name)}</h2>
+    ${kv([['Address',esc(p.address||'')],['County',esc(p.county||'')],['Network',p.neturl?A(p.neturl,p.network||'—'):esc(p.network||'—')],['Connectors',esc(p.connectors||'—')],...ports,['Hours',esc(p.hours||'Not listed')],['Access',esc(p.access||'Public')],['Pricing',p.pricing?esc(p.pricing):null],['Phone',p.phone?esc(p.phone):null]])}
+    <h3>Source</h3><ul class="srcs"><li>${A(p.url||'https://afdc.energy.gov/stations/','U.S. DOE Alternative Fuels Data Center')} (US public domain)${p.confirmed?' · last confirmed '+esc(p.confirmed):''}</li></ul>`;}
   else if(kind==='tx') h=`<div class="kicker">Transmission line</div><h2>${esc(p.kv)} kV</h2>${kv([['Operator',esc(p.op||'Not tagged')]])}<h3>Source</h3><ul class="srcs"><li>${A('https://www.openstreetmap.org/way/'+p.osm,'OSM way '+p.osm)} · ODbL</li></ul>`;
   d.innerHTML=`<button class="iconbtn x" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`+h+`<p class="note">Not for engineering, legal, or investment decisions.</p>`;
   d.hidden=false; d.scrollTop=0; d.querySelector('.x').onclick=()=>{d.hidden=true};
@@ -304,6 +365,7 @@ function about(){
   <tr><td>Minerals</td><td>${A('https://mrdata.usgs.gov/mrds/','USGS MRDS')}; WVU / NETL rare earth sites</td><td>US public domain</td></tr>
   <tr><td>Oil &amp; gas wells</td><td>${A(WVGES_WELLS,'WVGES well layer')} built from ${A('https://dep.wv.gov/oil-and-gas/databaseinfo/Pages/default.aspx','WVDEP Office of Oil and Gas')} permits · courtesy of the ${A('https://www.wvgs.wvnet.edu/','West Virginia Geological and Economic Survey (WVGES)')}</td><td>⚠ No license posted; credit WVDEP and WVGES; written terms pending</td></tr>
   <tr><td>Flock / ALPR</td><td>${A('https://www.openstreetmap.org/copyright','OpenStreetMap')} via ${A('https://deflock.org','DeFlock')}</td><td>ODbL 1.0 — own file (alpr_odbl.geojson)</td></tr>
+  <tr><td>EV charging stations</td><td>${A('https://afdc.energy.gov/stations/','U.S. DOE Alternative Fuels Data Center')} (NREL Alternative Fuel Stations API; public, currently available electric stations in WV)</td><td>US public domain</td></tr>
   <tr><td>Power plants</td><td>${A('https://www.eia.gov/electricity/data/eia860m/','EIA-860M Sep 2026')}</td><td>US public domain</td></tr>
   <tr><td>Transmission</td><td>OpenStreetMap (as on ${A('https://openinframap.org/copyright','Open Infrastructure Map')})</td><td>ODbL 1.0 — own file (transmission_odbl.geojson)</td></tr>
   <tr><td>Counties</td><td>US Census cartographic boundaries 2023</td><td>US public domain</td></tr>
@@ -430,9 +492,10 @@ function loadSearch(){ if(!sxP) sxP=Promise.all([getJSON('data/search/places.jso
   wv.mines.forEach(m=>E.push([norm(m[1]),'mine',m[1],'Coal mine · MSHA '+m[0]+(m[4]?' · '+m[4]+' Co.':'')+(m[5]?' · '+m[5]:''),{id:m[0],ll:[m[2],m[3]],g:m[5]},m[0]]));
   wv.min.forEach(m=>E.push([norm(m[1]),'min',m[1],'Mineral site'+(m[0]?' · MRDS '+m[0]:'')+(m[4]?' · '+m[4]:''),{id:m[0],name:m[1],ll:[m[2],m[3]],g:m[5]},m[0]]));
   wv.pp.forEach(m=>E.push([norm(m[1]),'pp',m[1],'Power plant · EIA '+m[0]+(m[4]?' · '+m[4]+' Co.':'')+(m[5]?' · '+m[5]:''),{id:m[0],ll:[m[2],m[3]]},m[0]]));
+  (wv.ev||[]).forEach(m=>E.push([norm(m[1]),'ev',m[1],'EV charging'+(m[5]==='dc'?' · DC fast':' · Level 2')+(m[6]?' · '+m[6]:'')+(m[4]?' · '+m[4]+' Co.':'')+(m[7]?' · '+m[7]:''),{id:m[0],ll:[m[2],m[3]]},String(m[0])+' '+norm(m[7]||'')]));
   SX=E; return E}).catch(e=>{sxP=null;throw e}); return sxP }
-const KIND_W={state:30,county:22,wvdc:26,usdc:18,mine:14,min:12,pp:16,place:20,well:40};
-const KIND_L={state:'State',county:'County',place:'Town',wvdc:'Data center',usdc:'Data center',mine:'Coal mine',min:'Mineral',pp:'Power plant',well:'Well'};
+const KIND_W={state:30,county:22,wvdc:26,usdc:18,mine:14,min:12,pp:16,ev:17,place:20,well:40};
+const KIND_L={state:'State',county:'County',place:'Town',wvdc:'Data center',usdc:'Data center',mine:'Coal mine',min:'Mineral',pp:'Power plant',ev:'EV charging',well:'Well'};
 function searchRun(q){
   const n=norm(q), out=[]; if(n.length<2) return out;
   const digits=q.replace(/[^0-9]/g,'');
@@ -484,6 +547,7 @@ async function goSearch(r){
   if(k==='min'){ await setView('wv',{noFit:true}); await setLayer('min',true); const g=p.g==='ree_site'?'ree':p.g; if(g&&!minGroups[g]){minGroups[g]=true; $$(`[data-mg="${g}"]`).forEach(c=>c.classList.add('on')); applyMinFilter()}
     const f=S.min.features.find(x=>(p.id&&String(x.properties.id)===p.id)||(!p.id&&x.properties.name===p.name)); map.flyTo({center:p.ll,zoom:12,padding:pad()}); if(f) showDetail('min',f.properties,f.geometry.coordinates); return}
   if(k==='pp'){ await setView('wv',{noFit:true}); await setLayer('pp',true); const f=S.pp.features.find(x=>String(x.properties.id)===p.id); map.flyTo({center:p.ll,zoom:12,padding:pad()}); if(f) showDetail('pp',f.properties,f.geometry.coordinates); return}
+  if(k==='ev'){ await setView('wv',{noFit:true}); await setLayer('ev',true); const f=S.ev.features.find(x=>String(x.properties.id)===String(p.id)); map.flyTo({center:p.ll,zoom:13,padding:pad()}); if(f) showDetail('ev-pt',f.properties,f.geometry.coordinates); return}
   if(k==='well'){ await setView('wv',{noFit:true}); const fips='54'+p.api.slice(2,5); let rows=[]; try{rows=await getJSON('data/wells/'+fips+'.json')}catch(e){toast('No well file for county code '+p.api.slice(2,5)+'.');return}
     const row=rows.find(x=>String(x[2])===p.api); if(!row){toast('Well API '+p.api+' is not in the WVGES layer we loaded.');return}
     await setLayer('wells',true); map.flyTo({center:[row[0],row[1]],zoom:14,padding:pad()}); pin([row[0],row[1]],'API '+p.api);
